@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance System</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+        .container {
+            text-align: center;
+            padding: 40px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        h1 { color: #333; }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #6c757d; cursor: not-allowed; }
+        #status {
+            margin-top: 20px;
+            font-size: 1.2em;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+        #status small {
+            font-weight: normal;
+            color: #6c757d;
+            font-size: 0.8em;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Attendance Verification</h1>
+        <p>Press the button to mark your attendance for class <strong>CS101</strong>.</p>
+        <button id="attendance-button" onclick="markAttendance()">Mark My Attendance</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:5000/verify-attendance"; // Flask/Backend endpoint
+
+        async function markAttendance() {
+            const statusElement = document.getElementById('status');
+            const buttonElement = document.getElementById('attendance-button');
+            
+            if (!navigator.geolocation) {
+                statusElement.textContent = "Geolocation is not supported by your browser.";
+                statusElement.className = "error";
+                return;
+            }
+
+            statusElement.textContent = "Requesting high-accuracy location...";
+            statusElement.className = "";
+            buttonElement.disabled = true;
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            navigator.geolocation.getCurrentPosition(locationSuccess, locationError, options);
+        }
+
+        async function locationSuccess(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            const statusElement = document.getElementById('status');
+
+            statusElement.innerHTML = `Location found with an accuracy of ${accuracy.toFixed(1)} meters.<br><small>Verifying with server...</small>`;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        class_id: "CS101",
+                        latitude: latitude,
+                        longitude: longitude
+                    })
+                });
+
+                const result = await response.json();
+                console.log("Server response:", result);
+
+                if (result.status === "success") {
+                    statusElement.className = "success";
+                } else {
+                    statusElement.className = "error";
+                }
+
+                statusElement.innerHTML = `${result.message}<br><small>Your Location (Accuracy: ~${accuracy.toFixed(1)}m):<br>Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}</small>`;
+
+            } catch (error) {
+                statusElement.innerHTML = `Error: Could not connect to the server.<br><small>${error.message}</small>`;
+                statusElement.className = "error";
+            } finally {
+                document.getElementById('attendance-button').disabled = false;
+            }
+        }
+
+        function locationError(error) {
+            const statusElement = document.getElementById('status');
+            statusElement.textContent = `Error getting location: ${error.message}`;
+            statusElement.className = "error";
+            document.getElementById('attendance-button').disabled = false;
+        }
+    </script>
+
+</body>
+</html>
