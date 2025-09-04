@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,9 +60,13 @@
     </div>
 
     <script>
-        // Set the URL for your Flask backend API
         const API_URL = "https://codeavengers-pff5.onrender.com/verify-attendance";
-        
+
+        // --- ALGORITHM CONFIGURATION PARAMETERS ---
+        // The accuracy (in meters) we must achieve before we proceed.
+        const TARGET_ACCURACY_METERS = 10;
+        // The maximum time (in milliseconds) we will spend hunting for accuracy.
+        const WATCH_TIMEOUT_MILLISECONDS = 25000; // 25 seconds
 
         async function markAttendance() {
             const statusElement = document.getElementById('status');
@@ -75,63 +78,97 @@
                 return;
             }
 
-            statusElement.textContent = "Requesting high-accuracy location...";
-            statusElement.className = ""; // Reset color
             buttonElement.disabled = true;
+            statusElement.className = "";
+            statusElement.innerHTML = `Acquiring high-accuracy signal lock...<br><small>This may take up to 25 seconds.</small>`;
 
-            // These options tell the browser to try and get the most accurate location possible.
-            const options = {
-                enableHighAccuracy: true,
-                timeout: 10000, // Stop trying after 10 seconds
-                maximumAge: 0   // Don't use a cached location
-            };
-
-            // Request the location with the high-accuracy options
-            navigator.geolocation.getCurrentPosition(locationSuccess, locationError, options);
+            try {
+                // Execute the new high-accuracy algorithm
+                const position = await getHighAccuracyLocation();
+                // If successful, send the trusted location to the server
+                await sendLocationToServer(position);
+            } catch (error) {
+                // If the algorithm fails or times out, report the error
+                statusElement.textContent = `Error: ${error.message}`;
+                statusElement.className = "error";
+            } finally {
+                // Always re-enable the button
+                buttonElement.disabled = false;
+            }
         }
 
-        async function locationSuccess(position) {
+        function getHighAccuracyLocation() {
+            // This function wraps the complex watchPosition logic in a modern Promise
+            return new Promise((resolve, reject) => {
+                let watchId;
+                let timeoutId;
+
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 30000, // Long timeout for each individual position request
+                    maximumAge: 0 // Force fresh data
+                };
+                
+                // Set a timeout for the entire hunting operation
+                timeoutId = setTimeout(() => {
+                    navigator.geolocation.clearWatch(watchId);
+                    reject(new Error("Could not achieve target accuracy within the time limit."));
+                }, WATCH_TIMEOUT_MILLISECONDS);
+
+                const successCallback = (position) => {
+                    const accuracy = position.coords.accuracy;
+                    const statusElement = document.getElementById('status');
+                    statusElement.innerHTML = `Refining signal...<br><small>Current accuracy: ${accuracy.toFixed(1)} meters.</small>`;
+                    
+                    // If we have reached our target accuracy, the mission is a success
+                    if (accuracy <= TARGET_ACCURACY_METERS) {
+                        // Stop listening for more updates
+                        navigator.geolocation.clearWatch(watchId);
+                        // Stop the master timeout
+                        clearTimeout(timeoutId);
+                        // Fulfill the promise with the high-quality position data
+                        resolve(position);
+                    }
+                };
+
+                const errorCallback = (error) => {
+                    navigator.geolocation.clearWatch(watchId);
+                    clearTimeout(timeoutId);
+                    reject(new Error(`Error getting location: ${error.message}`));
+                };
+                
+                // Start the process
+                watchId = navigator.geolocation.watchPosition(successCallback, errorCallback, options);
+            });
+        }
+
+        async function sendLocationToServer(position) {
             const latitude = position.coords.latitude;
             const longitude = position.coords.longitude;
             const accuracy = position.coords.accuracy;
             const statusElement = document.getElementById('status');
 
-            statusElement.innerHTML = `Location found with an accuracy of ${accuracy.toFixed(1)} meters.<br><small>Verifying with server...</small>`;
+            statusElement.innerHTML = `Signal lock achieved with ${accuracy.toFixed(1)}m accuracy.<br><small>Sending secure coordinates to server...</small>`;
 
             try {
-                // Send the location data to the Flask backend
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        class_id: "CS101", // Hardcoded for this example
+                        class_id: "CS101",
                         latitude: latitude,
                         longitude: longitude
                     })
                 });
 
                 const result = await response.json();
-
-                // Set the status text color based on the server's response
                 statusElement.className = (result.status === "success") ? "success" : "error";
-                
-                // Display the final message from the server along with the user's coordinates
-                statusElement.innerHTML = `${result.message}<br><small>Your Location (Accuracy: ~${accuracy.toFixed(1)}m):<br>Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}</small>`;
+                statusElement.innerHTML = `${result.message}<br><small>Final Location (Accuracy: ~${accuracy.toFixed(1)}m):<br>Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}</small>`;
 
             } catch (error) {
-                statusElement.innerHTML = `Error: Could not connect to the backend server.<br><small>${error.message}</small>`;
+                statusElement.innerHTML = `Error: Could not connect to the verification server.<br><small>${error.message}</small>`;
                 statusElement.className = "error";
-            } finally {
-                // Re-enable the button once the process is complete
-                document.getElementById('attendance-button').disabled = false;
             }
-        }
-
-        function locationError(error) {
-            const statusElement = document.getElementById('status');
-            statusElement.textContent = `Error getting location: ${error.message}`;
-            statusElement.className = "error";
-            document.getElementById('attendance-button').disabled = false;
         }
     </script>
 
