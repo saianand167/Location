@@ -6,7 +6,7 @@ from core_logic import verify_location # Import your core logic function
 
 app = Flask(__name__)
 # CORS is needed to allow the HTML file (frontend) to send requests to this server
-CORS(app)
+CORS(app, origins="YOUR_NETLIFY_SITE_URL_HERE")
 
 @app.route('/verify-attendance', methods=['POST'])
 def handle_verify_attendance():
