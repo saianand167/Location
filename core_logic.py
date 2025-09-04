@@ -17,7 +17,7 @@ CLASS_LOCATIONS: Dict[str, Dict[str, Any]] = {
     }
 }
 
-DEFAULT_RADIUS_METERS: int = 100 # The attendance radius is 100 meters
+DEFAULT_RADIUS_METERS: int = 10 # The attendance radius is 100 meters
 
 def verify_location(class_id: str, user_lat: float, user_lon: float) -> tuple[bool, float, dict]:
     """
