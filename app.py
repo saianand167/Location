@@ -5,13 +5,13 @@ from flask_cors import CORS
 from core_logic import verify_location # Import your core logic function
 
 app = Flask(__name__)
-# CORS is needed to allow a web browser (frontend) to send requests to your backend
+# CORS is needed to allow the HTML file (frontend) to send requests to this server
 CORS(app)
 
 @app.route('/verify-attendance', methods=['POST'])
 def handle_verify_attendance():
     """
-    This is the API endpoint that the frontend application will call.
+    This is the API endpoint that the frontend (index.html) will call.
     It expects a JSON payload with 'class_id', 'latitude', and 'longitude'.
     """
     # 1. Get the data from the incoming request
@@ -30,19 +30,16 @@ def handle_verify_attendance():
 
         # 4. Based on the result, build a response to send back to the user
         if is_in_range:
-            # THIS IS WHERE YOU WILL LATER ADD THE FACE RECOGNITION STEP
             print(f"SUCCESS: User is within range for class '{class_id}'. Distance: {distance:.2f}m.")
             return jsonify({
                 "status": "success",
-                "message": f"Location verified. You are {distance:.2f} meters from the class.",
-                "action": "proceed_with_face_scan"
+                "message": f"Location verified. You are {distance:.2f} meters from the class."
             })
         else:
             print(f"FAILURE: User is NOT within range for class '{class_id}'. Distance: {distance:.2f}m.")
             return jsonify({
                 "status": "failure",
-                "message": f"Attendance denied. You are {distance:.2f} meters away from the class location.",
-                 "action": "show_error_on_screen"
+                "message": f"Attendance denied. You are {distance:.2f} meters away from the class location."
             })
 
     except ValueError as e:

@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -60,7 +61,8 @@
     </div>
 
     <script>
-        const API_URL = "http://127.0.0.1:5000/verify-attendance"; // Flask/Backend endpoint
+        // Set the URL for your Flask backend API
+        const API_URL = "http://127.0.0.1:5000/verify-attendance";
 
         async function markAttendance() {
             const statusElement = document.getElementById('status');
@@ -73,15 +75,17 @@
             }
 
             statusElement.textContent = "Requesting high-accuracy location...";
-            statusElement.className = "";
+            statusElement.className = ""; // Reset color
             buttonElement.disabled = true;
 
+            // These options tell the browser to try and get the most accurate location possible.
             const options = {
                 enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
+                timeout: 10000, // Stop trying after 10 seconds
+                maximumAge: 0   // Don't use a cached location
             };
 
+            // Request the location with the high-accuracy options
             navigator.geolocation.getCurrentPosition(locationSuccess, locationError, options);
         }
 
@@ -94,31 +98,30 @@
             statusElement.innerHTML = `Location found with an accuracy of ${accuracy.toFixed(1)} meters.<br><small>Verifying with server...</small>`;
 
             try {
+                // Send the location data to the Flask backend
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        class_id: "CS101",
+                        class_id: "CS101", // Hardcoded for this example
                         latitude: latitude,
                         longitude: longitude
                     })
                 });
 
                 const result = await response.json();
-                console.log("Server response:", result);
 
-                if (result.status === "success") {
-                    statusElement.className = "success";
-                } else {
-                    statusElement.className = "error";
-                }
-
+                // Set the status text color based on the server's response
+                statusElement.className = (result.status === "success") ? "success" : "error";
+                
+                // Display the final message from the server along with the user's coordinates
                 statusElement.innerHTML = `${result.message}<br><small>Your Location (Accuracy: ~${accuracy.toFixed(1)}m):<br>Lat: ${latitude.toFixed(5)}, Lon: ${longitude.toFixed(5)}</small>`;
 
             } catch (error) {
-                statusElement.innerHTML = `Error: Could not connect to the server.<br><small>${error.message}</small>`;
+                statusElement.innerHTML = `Error: Could not connect to the backend server.<br><small>${error.message}</small>`;
                 statusElement.className = "error";
             } finally {
+                // Re-enable the button once the process is complete
                 document.getElementById('attendance-button').disabled = false;
             }
         }
