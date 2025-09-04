@@ -7,8 +7,8 @@ from typing import Dict, Any, Tuple # For older Python versions if needed
 CLASS_LOCATIONS: Dict[str, Dict[str, Any]] = {
     "CS101": {
         "name": "Computer Science Building, Room 101",
-        "lat": 16.791913,
-        "lon": 80.822386
+        "lat": 16.7953091,
+        "lon": 80.8228997
     },
     "PHY203": {
         "name": "Physics Hall, Room 203",
